@@ -35,6 +35,12 @@ Configuration.secret_key = YOOKASSA_SECRET_KEY
 # Flask приложение
 app = Flask(__name__)
 
+@app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
+def telegram_webhook():
+    update = Update.de_json(request.json, application.bot)
+    application.update_queue.put(update)
+    return "OK", 200
+
 @app.route('/payment-webhook', methods=['POST'])
 def payment_webhook():
     data = request.json
@@ -136,8 +142,11 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Запуск Flask через Waitress
-    from waitress import serve
-    serve(app, host="0.0.0.0", port=PORT)
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=f"{TELEGRAM_BOT_TOKEN}",
+        webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}",
+    )
 
 
