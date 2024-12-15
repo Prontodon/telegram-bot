@@ -5,7 +5,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from dotenv import load_dotenv
 from yookassa import Configuration, Payment
 from flask import Flask, request, jsonify
-from threading import Thread
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -16,18 +15,24 @@ logger = logging.getLogger(__name__)
 
 # Переменные окружения
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-WEBHOOK_URL = os.getenv('WEBHOOK_URL')
-PORT = int(os.getenv('PORT', 8080))
+WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://your-app-name.onrender.com')
+PORT = int(os.getenv('PORT', 443))
 CHANNEL_INVITE_LINK = os.getenv('CHANNEL_INVITE_LINK')
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
-SUPPORT_CHAT_URL = 'https://t.me/manemanvelovna'
+SUPPORT_CHAT_URL = os.getenv('SUPPORT_CHAT_URL', 'https://t.me/manemanvelovna')
+
+# Проверка обязательных переменных
+required_vars = [TELEGRAM_BOT_TOKEN, WEBHOOK_URL, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY]
+if not all(required_vars):
+    logger.error("Отсутствуют обязательные переменные окружения!")
+    exit(1)
 
 # Настройка ЮKассы
 Configuration.account_id = YOOKASSA_SHOP_ID
 Configuration.secret_key = YOOKASSA_SECRET_KEY
 
-# Flask приложение для обработки webhook
+# Flask приложение
 app = Flask(__name__)
 
 @app.route('/payment-webhook', methods=['POST'])
@@ -51,8 +56,7 @@ async def send_access_link(user_id):
     )
     await application.bot.send_message(chat_id=user_id, text=invite_message)
 
-# Генерация уникальной ссылки на оплату
-
+# Генерация ссылки на оплату
 def generate_payment_link(user_id):
     try:
         payment = Payment.create({
@@ -132,6 +136,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    application.run_polling()
+    # Запуск Flask через Waitress
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=PORT)
 
 
