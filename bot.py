@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Переменные окружения
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://your-app-name.onrender.com')
+WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://telegram-bot-2h7v.onrender.com')
 PORT = int(os.getenv('PORT', 443))
 CHANNEL_INVITE_LINK = os.getenv('CHANNEL_INVITE_LINK')
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
@@ -23,8 +23,7 @@ YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
 SUPPORT_CHAT_URL = os.getenv('SUPPORT_CHAT_URL', 'https://t.me/manemanvelovna')
 
 # Проверка обязательных переменных
-required_vars = [TELEGRAM_BOT_TOKEN, WEBHOOK_URL, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY]
-if not all(required_vars):
+if not all([TELEGRAM_BOT_TOKEN, WEBHOOK_URL, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY]):
     logger.error("Отсутствуют обязательные переменные окружения!")
     exit(1)
 
@@ -34,12 +33,6 @@ Configuration.secret_key = YOOKASSA_SECRET_KEY
 
 # Flask приложение
 app = Flask(__name__)
-
-@app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
-def telegram_webhook():
-    update = Update.de_json(request.json, application.bot)
-    application.update_queue.put(update)
-    return "OK", 200
 
 @app.route('/payment-webhook', methods=['POST'])
 def payment_webhook():
@@ -142,11 +135,6 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=f"{TELEGRAM_BOT_TOKEN}",
-        webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}",
-    )
-
-
+    # Запуск Flask через Waitress
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=PORT)
