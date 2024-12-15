@@ -23,7 +23,8 @@ YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
 SUPPORT_CHAT_URL = os.getenv('SUPPORT_CHAT_URL', 'https://t.me/manemanvelovna')
 
 # Проверка обязательных переменных
-if not all([TELEGRAM_BOT_TOKEN, WEBHOOK_URL, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY]):
+required_vars = [TELEGRAM_BOT_TOKEN, WEBHOOK_URL, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY]
+if not all(required_vars):
     logger.error("Отсутствуют обязательные переменные окружения!")
     exit(1)
 
@@ -39,11 +40,12 @@ def payment_webhook():
     data = request.json
     logger.info(f"Получены данные вебхука: {data}")
 
-    if data.get('event') == 'payment.succeeded':
+    if data and data.get('event') == 'payment.succeeded':
         user_id = data['object']['metadata'].get('user_id')
         if user_id:
             application.create_task(send_access_link(user_id))
             return jsonify({'status': 'success'}), 200
+    
     logger.error("Некорректные данные вебхука или отсутствует user_id")
     return jsonify({'status': 'error'}), 400
 
@@ -131,10 +133,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # Основная функция
 if __name__ == '__main__':
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Запуск Flask через Waitress
     from waitress import serve
     serve(app, host="0.0.0.0", port=PORT)
+
